@@ -8,6 +8,12 @@
 // Two flange styles:
 //   "support" - 15x15mm beam-shaped flange (slides into connectors)
 //   "tab"     - Thin flat tab with square holes (overlaps with support)
+//
+// VESA mount presets:
+//   "75"     - VESA 75x75 (MIS-D 75) — M4, 75mm square
+//   "100"    - VESA 100x100 (MIS-D 100) — M4, 100mm square
+//   "200"    - VESA 200x200 (MIS-F) — M4, 200mm square
+//   "75_100" - VESA MIS-D combo — M4, both 75mm and 100mm patterns (8 holes)
 
 include <BOSL2/std.scad>
 include <../core/lib/constants.scad>
@@ -28,22 +34,30 @@ asymetry=0; // [-150:0.1:150]
 
 // shows the distance between the rackmount ears considering the device width.
 show_distance=false;
+// Which part to render. Use "left" or "right" for individual 3MF/STL export.
+part="both"; // [both:Both ears (preview),left:Left ear,right:Right ear]
 
 // Width of the device in mm. Will determine the width of the rackmount ears depending on rack width.
 device_width=201;
 // Height of the device in mm. Will determine the height of the rackmount ear in standard HeightUnits (1HU=44.45 mm). The program will always choose the minimum number of units to fit the device height. Minimum is 1 unit.
 device_height=40;
+// Depth of the device in mm. The side face will be at least this deep, and bores (including VESA) will be centered on this depth. Set to 0 to auto-size from bore parameters only.
+device_depth=0; // [0:1:500]
 
 // Thickness of the rackmount ear.
 strength=3;
 
 /* [Flange] */
 // Flange attachment style
-flange_style="support"; // [support:Support beam (15x15mm),tab:Flat tab]
+flange_style="tab"; // [support:Support beam (15x15mm),tab:Flat tab]
 // Flange depth in base units (each unit = 15mm)
 flange_depth=1; // [1:1:10]
 // Direction the flange extends from the front face
-flange_direction="inside"; // [inside:Inside (into rack),outside:Outside (toward device)]
+flange_direction="outside"; // [inside:Inside (into rack),outside:Outside (toward device)]
+
+/* [VESA Mount] */
+// VESA mounting preset. Overrides device bore settings below when not "none".
+vesa_preset="none"; // [none:Manual bore config,75:VESA 75x75 (MIS-D 75),100:VESA 100x100 (MIS-D 100),200:VESA 200x200 (MIS-F),75_100:VESA MIS-D combo (75+100)]
 
 /* [Device Bores] */
 // Distance (in mm) of the device's front bores(s) to the front of the device
@@ -69,7 +83,14 @@ center_device_bore_alignment=false;
 
 /* [Derived] */
 CHAMFER=min(strength/3,0.5);
-RACK_HEIGHT_UNIT_COUNT=max(1,ceil(device_height/RACK_HEIGHT_UNIT));
+
+// When VESA is active, auto-size height to fit the hole pattern + margins
+_vesa_min_height = _vesa_active
+    ? _vesa_spacing + 2 * max(10, device_bore_distance_bottom)
+    : 0;
+eff_device_height = max(device_height, _vesa_min_height);
+
+RACK_HEIGHT_UNIT_COUNT=max(1,ceil(eff_device_height/RACK_HEIGHT_UNIT));
 RACK_HEIGHT=RACK_HEIGHT_UNIT_COUNT*RACK_HEIGHT_UNIT;
 PIN_HEIGHT_UNITS=max(1,floor(RACK_HEIGHT/BASE_UNIT));
 FLANGE_HEIGHT=PIN_HEIGHT_UNITS*BASE_UNIT;
@@ -78,21 +99,53 @@ FLANGE_Z_OFFSET=(RACK_HEIGHT-FLANGE_HEIGHT)/2;
 RACK_WIDTH_10_INCH_OUTER=STD_WIDTH_10INCH;
 RACK_WIDTH_19_INCH=STD_WIDTH_19INCH;
 
+// VESA standard dimensions: M4 screws, always 2x2 grid, centered
+// Shaft: 4.5mm clearance for M4, Head: 8.5mm (socket cap), Countersink: 1.5mm
+// Compare against both string and numeric types to handle OpenSCAD
+// customizer type coercion (dropdown values may arrive as strings or numbers).
+_vesa_active = vesa_preset != "none" && vesa_preset != 0;
+_vesa_spacing =
+    (vesa_preset == 75 || vesa_preset == "75") ? 75 :
+    (vesa_preset == 100 || vesa_preset == "100") ? 100 :
+    (vesa_preset == 200 || vesa_preset == "200") ? 200 :
+    (vesa_preset == "75_100") ? 100 : 0;  // combo uses 100 as primary
+_vesa_has_combo = vesa_preset == "75_100";
+
+// Effective bore parameters (VESA overrides manual settings)
+eff_bore_columns = _vesa_active ? 2 : device_bore_columns;
+eff_bore_rows = _vesa_active ? 2 : device_bore_rows;
+eff_bore_margin_h = _vesa_active ? _vesa_spacing : device_bore_margin_horizontal;
+eff_bore_margin_v = _vesa_active ? _vesa_spacing : device_bore_margin_vertical;
+eff_bore_hole_diameter = _vesa_active ? 4.5 : device_bore_hole_diameter;
+eff_bore_hole_head_diameter = _vesa_active ? 8.5 : device_bore_hole_head_diameter;
+eff_bore_hole_head_length = _vesa_active ? 1.5 : device_bore_hole_head_length;
+eff_bore_distance_front = _vesa_active ? max(10, device_bore_distance_front) : device_bore_distance_front;
+eff_center_alignment = _vesa_active ? true : center_device_bore_alignment;
+
 // Debug
 echo("Height: ", RACK_HEIGHT);
 echo("Pin holes vertical: ", PIN_HEIGHT_UNITS);
+if (_vesa_active) echo("VESA preset: ", vesa_preset, " type: ", type(vesa_preset), " spacing: ", _vesa_spacing, " margin_v: ", eff_bore_margin_v, " margin_h: ", eff_bore_margin_h);
 
-function get_bore_depth(device_bore_margin_horizontal,device_bore_columns) =
-    (device_bore_columns - 1) * device_bore_margin_horizontal
+function get_bore_depth(margin_h, cols) =
+    (cols - 1) * margin_h
 ;
-// Calculate the depth of the ear
-depth=device_bore_distance_front*2+get_bore_depth(device_bore_margin_horizontal,device_bore_columns);
+// Calculate the depth of the ear — at least enough for bores, but also at least device_depth
+_bore_depth=eff_bore_distance_front*2+get_bore_depth(eff_bore_margin_h, eff_bore_columns);
+depth=max(_bore_depth, device_depth);
+
 device_screw_alignment_vertical=
-    center_device_bore_alignment ?
+    eff_center_alignment ?
         RACK_HEIGHT / 2 :
-        device_bore_margin_vertical / 2 + device_bore_distance_bottom
+        eff_bore_margin_v / 2 + device_bore_distance_bottom
 ;
-device_screw_alignment = [strength,depth/2,device_screw_alignment_vertical];
+// VESA: push pattern toward back of side face (10mm past last hole)
+// Manual bores: center on depth as before
+_bore_half_span = get_bore_depth(eff_bore_margin_h, eff_bore_columns) / 2;
+device_screw_alignment_depth = _vesa_active
+    ? depth - 10 - _bore_half_span
+    : depth / 2;
+device_screw_alignment = [strength, device_screw_alignment_depth, device_screw_alignment_vertical];
 
 
 // lock_pin_hole() - Bidirectional chamfered square hole for lock pins.
@@ -133,13 +186,20 @@ module base_ear(width,strength,height) {
     }
 }
 
-module screws_countersunk(length, diameter_head, length_head, diameter_shaft) {
-    translate(device_screw_alignment)
+module screws_countersunk(length, diameter_head, length_head, diameter_shaft,
+                          margin_v=undef, margin_h=undef, rows=undef, cols=undef) {
+    _mv = is_undef(margin_v) ? eff_bore_margin_v : margin_v;
+    _mh = is_undef(margin_h) ? eff_bore_margin_h : margin_h;
+    _rows = is_undef(rows) ? eff_bore_rows : rows;
+    _cols = is_undef(cols) ? eff_bore_columns : cols;
+    // Extend cutting geometry 0.5mm past each surface to avoid z-fighting
+    _eps = 0.5;
+    translate(device_screw_alignment + [_eps, 0, 0])
     yrot(-90)
-    grid_copies(spacing=[device_bore_margin_vertical,device_bore_margin_horizontal],n=[device_bore_rows, device_bore_columns])
+    grid_copies(spacing=[_mv,_mh],n=[_rows, _cols])
     union() {
         cylinder(h=length_head, r1=diameter_head/2, r2=diameter_shaft/2);
-        translate([0,0,length_head]) cylinder(h=length-length_head, r=diameter_shaft/2);
+        translate([0,0,length_head]) cylinder(h=length-length_head+_eps, r=diameter_shaft/2);
     }
 }
 
@@ -205,10 +265,19 @@ module rackmount_ear_homeracker(asym=0){
     effective_rack_width = rack_width > 0 ? rack_width :
         (rack_size == 19 ? RACK_WIDTH_19_INCH : RACK_WIDTH_10_INCH_OUTER);
 
-    // Calculate the width of the ear, enforcing minimum for flange + structural support
-    // tab+outside needs at least BASE_UNIT so holes are fully contained in front face
-    min_ear_width = (flange_style == "support" || flange_direction == "outside" ? BASE_UNIT : strength) + strength;
-    rack_ear_width = max(min_ear_width, (effective_rack_width - device_width) / 2 + asym);
+    // Gap from device edge to rack opening edge
+    rack_gap = (effective_rack_width - device_width) / 2 + asym;
+
+    // For tab+outside: front face extends past the rack opening to overlap with
+    // the homeracker support that sits outside the opening. Hole center is at
+    // rack_gap + BASE_UNIT/2 (aligned with support center).
+    // For other styles: ear width is just the gap + minimum for the flange.
+    hole_overlap = 5+ BASE_UNIT/2 + LOCKPIN_HOLE_SIDE_LENGTH/2 + LOCKPIN_HOLE_CHAMFER;
+    min_ear_width = flange_style == "support" ? BASE_UNIT + strength :
+        (flange_direction == "outside" ? hole_overlap + strength : strength * 2);
+    rack_ear_width = flange_direction == "outside"
+        ? max(min_ear_width, rack_gap + hole_overlap)
+        : max(min_ear_width, rack_gap);
 
     // Flange thickness for positioning
     flange_thick = flange_style == "support" ? BASE_UNIT : strength;
@@ -222,6 +291,20 @@ module rackmount_ear_homeracker(asym=0){
     flange_y_pos = flange_direction == "inside"
         ? 0
         : -flange_thick/2;
+
+    echo("=== Rackmount Ear Debug ===");
+    echo("effective_rack_width: ", effective_rack_width);
+    echo("rack_gap: ", rack_gap);
+    echo("rack_ear_width: ", rack_ear_width);
+    echo("hole_overlap: ", hole_overlap);
+    echo("min_ear_width: ", min_ear_width);
+    echo("hole X position: ", rack_gap + BASE_UNIT/2);
+    echo("support inner edge X: ", rack_gap);
+    echo("support center X: ", rack_gap + BASE_UNIT/2);
+    echo("support outer edge X: ", rack_gap + BASE_UNIT);
+    echo("ear outer edge X: ", rack_ear_width);
+    echo("FLANGE_Z_OFFSET: ", FLANGE_Z_OFFSET);
+    echo("PIN_HEIGHT_UNITS: ", PIN_HEIGHT_UNITS);
 
     difference() {
         union() {
@@ -239,14 +322,26 @@ module rackmount_ear_homeracker(asym=0){
                 }
             }
         }
-        // Create the holes for the device screws
-        screws_countersunk(length=strength,diameter_head=device_bore_hole_head_diameter,length_head=device_bore_hole_head_length,diameter_shaft=device_bore_hole_diameter);
+        // Create the holes for the device screws (primary pattern)
+        screws_countersunk(length=strength,
+            diameter_head=eff_bore_hole_head_diameter,
+            length_head=eff_bore_hole_head_length,
+            diameter_shaft=eff_bore_hole_diameter);
+
+        // VESA combo: add second set of holes at 75x75 spacing
+        if (_vesa_has_combo) {
+            screws_countersunk(length=strength,
+                diameter_head=eff_bore_hole_head_diameter,
+                length_head=eff_bore_hole_head_length,
+                diameter_shaft=eff_bore_hole_diameter,
+                margin_v=75, margin_h=75, rows=2, cols=2);
+        }
 
         // For tab+outside, cut square lock pin holes through the front face
-        // Holes centered a half-unit from the outer edge to align with homeracker grid
+        // Holes aligned with homeracker support center (BASE_UNIT/2 past the rack opening edge)
         if (flange_style == "tab" && flange_direction == "outside") {
             for (z_idx = [0 : PIN_HEIGHT_UNITS - 1]) {
-                translate([rack_ear_width - BASE_UNIT/2, strength/2, FLANGE_Z_OFFSET + z_idx * BASE_UNIT + BASE_UNIT/2])
+                translate([rack_gap + BASE_UNIT/2, strength/2, FLANGE_Z_OFFSET + z_idx * BASE_UNIT + BASE_UNIT/2])
                 rotate([90, 0, 0])
                 cuboid([LOCKPIN_HOLE_SIDE_LENGTH, LOCKPIN_HOLE_SIDE_LENGTH, strength + 1],
                        chamfer=-LOCKPIN_HOLE_CHAMFER);
@@ -257,12 +352,18 @@ module rackmount_ear_homeracker(asym=0){
 
 // Ear distance
 ear_distance = show_distance ? -device_width : -LOCKPIN_HOLE_SIDE_LENGTH;
-
-// Place the ears
-rackmount_ear_homeracker(asymetry);
-
 x_mirror_plane = [1,0,0];
-translate([ear_distance,0,0])
-mirror(x_mirror_plane){
-    rackmount_ear_homeracker(-asymetry);
+
+// Render selected part(s). Export "left" and "right" separately for 3MF.
+if (part == "both" || part == "left") {
+    color("yellow")
+    rackmount_ear_homeracker(asymetry);
+}
+
+if (part == "both" || part == "right") {
+    color("blue")
+    translate([part == "both" ? ear_distance : 0, 0, 0])
+    mirror(x_mirror_plane){
+        rackmount_ear_homeracker(-asymetry);
+    }
 }
