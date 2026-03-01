@@ -87,8 +87,8 @@ def extract_hidden_section(content: str) -> str:
     Returns:
         Hidden section with marker and content, or empty string if not found
     """
-    # Match: /* [Hidden] */ followed by content until include/use/module/function/$
-    match = re.search(r"/\*\s*\[Hidden\]\s*\*/.*?(?=\n(?:include|use|module|function|\$))", content, re.DOTALL)
+    # Match: /* [Hidden] */ followed by content until first module/function definition
+    match = re.search(r"/\*\s*\[Hidden\]\s*\*/.*?(?=\n(?:module|function)\s+\w+)", content, re.DOTALL)
     return match.group(0) if match else ""
 
 
@@ -123,18 +123,30 @@ def is_bosl2(path: str) -> bool:
     return path.startswith("BOSL2/")
 
 
-def resolve_path(current_file: Path, include_path: str) -> Path:
-    """Resolve relative include path from current file location.
+def resolve_path(current_file: Path, include_path: str, search_paths: list = None) -> Path:
+    """Resolve include path by searching current file's directory, then search paths.
 
-    Resolves relative include paths to absolute paths, needed to locate library files for inlining.
+    Tries the file's own directory first (for relative includes like ../main.scad),
+    then falls back to search paths (for library-style includes like core/lib/constants.scad).
 
     Args:
         current_file: Absolute path to file containing the include statement
         include_path: Relative path from include/use statement
+        search_paths: Additional directories to search (e.g., models/ dir)
 
     Returns:
-        Absolute resolved path to the included file
+        Absolute resolved path to the included file (may not exist if not found anywhere)
     """
+    candidate = (current_file.parent / include_path).resolve()
+    if candidate.exists():
+        return candidate
+
+    for sp in (search_paths or []):
+        candidate = (sp / include_path).resolve()
+        if candidate.exists():
+            return candidate
+
+    # Return the original resolution as fallback (will fail exists() check in caller)
     return (current_file.parent / include_path).resolve()
 
 
@@ -204,7 +216,7 @@ def extract_definitions(content: str) -> str:
     return "\n".join(result)
 
 
-def process_file(file_path: Path, processed: Set[Path], bosl2_includes: Set[str]) -> str:
+def process_file(file_path: Path, processed: Set[Path], bosl2_includes: Set[str], search_paths: list = None) -> str:
     """Recursively process a library file and inline its local includes.
 
     Processes library files only (not root files). Validates that library files
@@ -214,6 +226,7 @@ def process_file(file_path: Path, processed: Set[Path], bosl2_includes: Set[str]
         file_path: Absolute path to library file being processed
         processed: Set of already-processed files to prevent duplicates
         bosl2_includes: Set to accumulate BOSL2 include statements
+        search_paths: Additional directories to search for includes
 
     Returns:
         Cleaned and inlined content from library file
@@ -241,9 +254,9 @@ def process_file(file_path: Path, processed: Set[Path], bosl2_includes: Set[str]
         if is_bosl2(path):
             bosl2_includes.add(f"{directive} <{path}>")
         else:
-            resolved = resolve_path(file_path, path)
+            resolved = resolve_path(file_path, path, search_paths)
             if resolved.exists():
-                inlined = process_file(resolved, processed, bosl2_includes)
+                inlined = process_file(resolved, processed, bosl2_includes, search_paths)
                 if inlined:
                     result.append(inlined)
 
@@ -262,16 +275,17 @@ def process_file(file_path: Path, processed: Set[Path], bosl2_includes: Set[str]
 
 
 def extract_main_code(content: str) -> str:
-    """Extract main code (after parameters/hidden sections), excluding variable assignments.
+    """Extract main code: module/function definitions and top-level invocations.
 
-    Extracts the main code section from root file (after all parameter sections).
-    Filters out variable assignments to keep only geometry-generating calls.
+    Extracts everything after the hidden section: module/function definitions
+    (with their full bodies, including local variables) and top-level calls.
+    Filters out only top-level variable assignments (already captured by hidden section).
 
     Args:
         content: OpenSCAD source code from root file
 
     Returns:
-        Main code section containing only module/function calls, not variable assignments
+        Main code section with modules, functions, and invocation calls
     """
     # First strip all comments
     content = strip_comments(content)
@@ -288,15 +302,20 @@ def extract_main_code(content: str) -> str:
     # Remove include statements: include <path> or use <path>
     content = re.sub(r"^\s*(include|use)\s*<[^>]+>\s*$", "", content, flags=re.MULTILINE)
 
-    # Filter out variable assignments, keep only function/module calls and other statements
+    # Filter out only TOP-LEVEL variable assignments (not those inside modules/functions)
     lines = content.split("\n")
     result = []
+    brace_depth = 0
     for line in lines:
         stripped = line.strip()
-        # Skip empty lines and variable assignments: varname = value;
-        if not stripped or re.match(r"^\w+\s*=.*;\s*$", stripped):
-            continue
+        # Track brace depth to know if we're inside a module/function
+        # Skip empty lines and top-level variable assignments only
+        if brace_depth == 0:
+            if not stripped or re.match(r"^\w+\s*=.*;\s*$", stripped):
+                brace_depth += line.count("{") - line.count("}")
+                continue
         result.append(line)
+        brace_depth += line.count("{") - line.count("}")
 
     return "\n".join(result).strip()
 
@@ -317,6 +336,12 @@ def export_for_makerworld(input_file: Path, output_file: Path):
     processed: Set[Path] = set()
     bosl2_includes: Set[str] = set()
 
+    # Build search paths: the models/ directory is the OpenSCAD library path
+    project_root = input_file.resolve()
+    while project_root.parent != project_root and not (project_root / "models").exists():
+        project_root = project_root.parent
+    search_paths = [project_root / "models"] if (project_root / "models").exists() else []
+
     root_content = input_file.read_text(encoding="utf-8")
     params = extract_parameters(root_content)
     hidden = extract_hidden_section(root_content)
@@ -329,9 +354,9 @@ def export_for_makerworld(input_file: Path, output_file: Path):
         if is_bosl2(path):
             bosl2_includes.add(f"{directive} <{path}>")
         else:
-            resolved = resolve_path(input_file, path)
+            resolved = resolve_path(input_file, path, search_paths)
             if resolved.exists():
-                lib_content = process_file(resolved, processed, bosl2_includes)
+                lib_content = process_file(resolved, processed, bosl2_includes, search_paths)
                 if lib_content:
                     inlined_libs.append(lib_content)
 
@@ -348,17 +373,16 @@ def export_for_makerworld(input_file: Path, output_file: Path):
         output_parts.append(params.strip())
         output_parts.append("")
 
-    # Hidden section with inlined library constants
+    # Hidden section: inlined library content first (constants, modules),
+    # then the root file's hidden variables that may depend on them
     output_parts.append("/* [Hidden] */")
+    if inlined_libs:
+        output_parts.append("\n\n".join(inlined_libs))
     if hidden:
-        # Extract just the content after /* [Hidden] */, removing the marker: /* [Hidden] */
+        # Extract just the content after /* [Hidden] */, removing the marker
         hidden_content = re.sub(r"/\*\s*\[Hidden\]\s*\*/", "", hidden).strip()
         if hidden_content:
             output_parts.append(hidden_content)
-
-    # Add inlined library content to hidden section
-    if inlined_libs:
-        output_parts.append("\n\n".join(inlined_libs))
 
     output_parts.append("")
 
@@ -396,9 +420,14 @@ if __name__ == "__main__":
     # Auto-detect model type from input path (e.g., models/core/parts -> core)
     models_dir = project_root / "models"
     relative_path = input_path.relative_to(models_dir)
-    model_type = relative_path.parts[0]  # First component is model type (core, gridfinity, etc.)
 
-    output_path = models_dir / model_type / "makerworld" / input_path.name
+    if len(relative_path.parts) > 1:
+        # Nested: models/<type>/parts/foo.scad -> models/<type>/makerworld/foo.scad
+        model_type = relative_path.parts[0]
+        output_path = models_dir / model_type / "makerworld" / input_path.name
+    else:
+        # Top-level: models/foo.scad -> models/makerworld/foo.scad
+        output_path = models_dir / "makerworld" / input_path.name
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     export_for_makerworld(input_path, output_path)
