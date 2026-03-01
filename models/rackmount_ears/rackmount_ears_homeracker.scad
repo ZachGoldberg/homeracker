@@ -272,7 +272,7 @@ module rackmount_ear_homeracker(asym=0){
     // the homeracker support that sits outside the opening. Hole center is at
     // rack_gap + BASE_UNIT/2 (aligned with support center).
     // For other styles: ear width is just the gap + minimum for the flange.
-    hole_overlap = 5+ BASE_UNIT/2 + LOCKPIN_HOLE_SIDE_LENGTH/2 + LOCKPIN_HOLE_CHAMFER;
+    hole_overlap =  BASE_UNIT/2 + LOCKPIN_HOLE_SIDE_LENGTH/2 + LOCKPIN_HOLE_CHAMFER;
     min_ear_width = flange_style == "support" ? BASE_UNIT + strength :
         (flange_direction == "outside" ? hole_overlap + strength : strength * 2);
     rack_ear_width = flange_direction == "outside"
@@ -340,8 +340,8 @@ module rackmount_ear_homeracker(asym=0){
         // For tab+outside, cut square lock pin holes through the front face
         // Holes aligned with homeracker support center (BASE_UNIT/2 past the rack opening edge)
         if (flange_style == "tab" && flange_direction == "outside") {
-            for (z_idx = [0 : PIN_HEIGHT_UNITS - 1]) {
-                translate([rack_gap + BASE_UNIT/2, strength/2, FLANGE_Z_OFFSET + z_idx * BASE_UNIT + BASE_UNIT/2])
+            for (z_idx = [0 : PIN_HEIGHT_UNITS]) {
+                translate([-5 + rack_gap + BASE_UNIT/2, strength/2, -7.5 + FLANGE_Z_OFFSET + z_idx * BASE_UNIT + BASE_UNIT/2])
                 rotate([90, 0, 0])
                 cuboid([LOCKPIN_HOLE_SIDE_LENGTH, LOCKPIN_HOLE_SIDE_LENGTH, strength + 1],
                        chamfer=-LOCKPIN_HOLE_CHAMFER);

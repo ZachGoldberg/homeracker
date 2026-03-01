@@ -10,8 +10,8 @@ standard = 1;  // [1:10 inch, 2:19 inch, 3:Custom width]
 custom_panel_width = 300; // [50:0.1:600]
 // Split Front panel for easier printability on smaller printers or 19" racks.
 split_frontpanel = false; // [false,true]
-// Offset device position left/right within the panel (0 = centered)
-asymmetry = 0; // [-100:0.1:100]
+// Export individual split parts for STL (only when split frontpanel is enabled)
+split_export = 0; // [0:All parts,1:Center + Tray,2:Left ear,3:Right ear]
 
 // Device width may enforce chosen standard to change to 19".
 device_width = 270; // [15:0.1:390]
@@ -135,6 +135,8 @@ VIEW_PLATE_SINGLE = 1;
 VIEW_PLATE_SPLIT_CENTER = 2;
 VIEW_PLATE_SPLIT_SIDES = 3;
 VIEW_PLATE_BRACKET = 4;
+VIEW_PLATE_SPLIT_LEFT = 5;
+VIEW_PLATE_SPLIT_RIGHT = 6;
 
 LOCKPIN_WIDTH_OUTER = BASE_UNIT + BASE_STRENGTH*2 + TOLERANCE*2;
 function get_panel_extension_height_bottom(flush_to_bottom) = flush_to_bottom ? (BASE_UNIT - TOLERANCE/2) : 0;
@@ -234,7 +236,7 @@ RACKMOUNT_FULL = 1;
 RACKMOUNT_CENTER = 2;
 RACKMOUNT_SIDE = 3;
 
-module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, asym=0, anchor=CENTER, spin=0, orient=UP) {
+module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, anchor=CENTER, spin=0, orient=UP) {
 
   panel_height = STD_UNIT_HEIGHT;
   panel_depth = BASE_STRENGTH;
@@ -248,9 +250,7 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, asy
         difference() {
           color(HR_YELLOW)
           cuboid(panel_dimensions){
-            align(BACK,LEFT) right(asym)
-              cuboid(flange_dims, chamfer=BASE_CHAMFER, edges=[BACK+LEFT,BACK+RIGHT]);
-            align(BACK,RIGHT) left(asym)
+            align(BACK,[LEFT,RIGHT])
               cuboid(flange_dims, chamfer=BASE_CHAMFER, edges=[BACK+LEFT,BACK+RIGHT]);
 
             align(BACK,BOTTOM)
@@ -260,9 +260,9 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, asy
               stiffener_frontpanel(panel_width-(STD_MOUNT_SURFACE_WIDTH+TOLERANCE)*2, orient=DOWN);
           }
           // Lock pin holes cut front-to-back through panel + flange
-          translate([(-panel_width + BASE_UNIT)/2 + asym, BASE_STRENGTH/2, 0])
+          translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, 0])
             lockpin_holes_fwd();
-          translate([(panel_width - BASE_UNIT)/2 - asym, BASE_STRENGTH/2, 0])
+          translate([(panel_width - BASE_UNIT)/2, BASE_STRENGTH/2, 0])
             lockpin_holes_fwd();
         }
       } else {
@@ -301,13 +301,13 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, asy
 
             if(rack_mount_style == "homeracker") {
               flange_dims = [BASE_UNIT, BASE_STRENGTH, panel_height];
-              align(BACK,LEFT) right(asym)
+              align(BACK,LEFT)
                 cuboid(flange_dims, chamfer=BASE_CHAMFER, edges=[BACK+LEFT,BACK+RIGHT]);
             }
           }
           if(rack_mount_style == "homeracker") {
             // Lock pin holes cut front-to-back through panel + left flange
-            translate([(-panel_width + BASE_UNIT)/2 + asym, BASE_STRENGTH/2, 0])
+            translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, 0])
               lockpin_holes_fwd();
           } else {
             translate([(-panel_width+STD_MOUNT_SURFACE_WIDTH)/2,0,0])
@@ -339,7 +339,7 @@ module mountbar(bar_dimensions, anchor=CENTER, spin=0, orient=UP) {
 }
 
 module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_height_top=0, height_units, rackmount_type,
-  asym=0, anchor=CENTER, spin=0, orient=UP, color=HR_YELLOW, debug_colors=false) {
+  anchor=CENTER, spin=0, orient=UP, color=HR_YELLOW, debug_colors=false) {
 
   rackmount_stack_height = height_units*STD_UNIT_HEIGHT;
   total_height = rackmount_stack_height + panel_extension_height_bottom + panel_extension_height_top;
@@ -355,7 +355,7 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
 
         color_this(color)
         up((panel_extension_height_bottom - panel_extension_height_top)/2)
-          zcopies(spacing=STD_UNIT_HEIGHT, n=height_units) rackmount_1u(panel_width, rackmount_type, asym=asym);
+          zcopies(spacing=STD_UNIT_HEIGHT, n=height_units) rackmount_1u(panel_width, rackmount_type);
 
         if(panel_extension_height_bottom > 0) {
           color(debug_colors ? HR_GREEN : color)
@@ -390,13 +390,13 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
 
         // Left flange notches
         for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
-          translate([(-panel_width + BASE_UNIT)/2 + asym, _flange_center_y, _z])
+          translate([(-panel_width + BASE_UNIT)/2, _flange_center_y, _z])
             cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
 
         // Right flange notches (only for full-width panels)
         if(rackmount_type == RACKMOUNT_FULL)
           for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
-            translate([(panel_width - BASE_UNIT)/2 - asym, _flange_center_y, _z])
+            translate([(panel_width - BASE_UNIT)/2, _flange_center_y, _z])
               cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
       }
     }
@@ -490,7 +490,7 @@ module frontpanel(variant, standard, split_frontpanel=false,
   assert(device_height >= 11 && device_height <= 250, "device_height must be between 11 and 250mm");
   assert(bracket_strength_sides >= 0 && bracket_strength_sides <= 50, "bracket_strength_sides must be between 0 and 50mm");
   assert(flange_depth >= 12 && flange_depth <= 30, "flange_depth must be between 12 and 30mm");
-  assert(view_mode >= 0 && view_mode <= 3, "view_mode must be between 0 and 3");
+  assert(view_mode >= 0 && view_mode <= 6, "view_mode must be between 0 and 6");
 
   flush_to_bottom = variant == VARIANT_BRACKET ? true : flush_to_bottom;
   bracket_strength_sides = variant == VARIANT_TRAY ? 0 : bracket_strength_sides;
@@ -540,11 +540,11 @@ module frontpanel(variant, standard, split_frontpanel=false,
 
         if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_SECONDARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
 
-        attach(LEFT, RIGHT, overlap=-TOLERANCE/2) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, asym=asymmetry, debug_colors=debug_colors){
+        attach(LEFT, RIGHT, overlap=-TOLERANCE/2) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors){
           if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
         }
 
-        attach(RIGHT, RIGHT, overlap=-TOLERANCE/2) mirror([1,0,0]) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, asym=asymmetry, debug_colors=debug_colors){
+        attach(RIGHT, RIGHT, overlap=-TOLERANCE/2) mirror([1,0,0]) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors){
           if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
         }
       }
@@ -569,19 +569,36 @@ module frontpanel(variant, standard, split_frontpanel=false,
       connector_offset = (BASE_UNIT + BASE_STRENGTH + TOLERANCE)*2+TOLERANCE;
 
       tag_scope("frontpanel_assembly") diff()
-      rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, asym=asymmetry, debug_colors=debug_colors, anchor=BOTTOM) {
+      rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors, anchor=BOTTOM) {
         if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
-        mirror([1,0,0]) attach(LEFT,RIGHT, overlap=connector_offset*-1) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, asym=asymmetry, debug_colors=debug_colors){
+        mirror([1,0,0]) attach(LEFT,RIGHT, overlap=connector_offset*-1) rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors){
           if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
         }
       }
+
+    } else if(view_mode == VIEW_PLATE_SPLIT_LEFT) {
+
+      xrot(90)
+      tag_scope("frontpanel_assembly") diff()
+      rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors) {
+        if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
+      }
+
+    } else if(view_mode == VIEW_PLATE_SPLIT_RIGHT) {
+
+      xrot(90)
+      mirror([1,0,0])
+      tag_scope("frontpanel_assembly") diff()
+      rackmount(panel_width_ear, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_SIDE, debug_colors=debug_colors) {
+        if(chamfer_toggle) color(debug_colors ? HR_RED : PANEL_PRIMARY_COLOR) tag("remove") edge_mask(FRONT) chamfer_edge_mask(chamfer=BASE_CHAMFER);
+      }
     }
 
-  } else if(view_mode != VIEW_PLATE_SPLIT_CENTER && view_mode != VIEW_PLATE_SPLIT_SIDES) {
+  } else if(view_mode != VIEW_PLATE_SPLIT_CENTER && view_mode != VIEW_PLATE_SPLIT_SIDES && view_mode != VIEW_PLATE_SPLIT_LEFT && view_mode != VIEW_PLATE_SPLIT_RIGHT) {
 
     xrot(view_mode == VIEW_PLATE_SINGLE ? 90 : 0)
     tag_scope("frontpanel_assembly") diff()
-    rackmount(panel_width, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_FULL, asym=asymmetry, debug_colors=debug_colors, anchor=anchor) {
+    rackmount(panel_width, panel_extension_height_bottom, panel_extension_height_top, height_units, RACKMOUNT_FULL, debug_colors=debug_colors, anchor=anchor) {
 
       align(BACK, BOTTOM, inset=get_flange_inset(variant, flush_to_bottom, height_units, flush_to_top)) {
         color_this(debug_colors ? HR_GREEN : PANEL_SECONDARY_COLOR)
@@ -766,12 +783,17 @@ module mw_assembly_view() {
     bracket_color = split_frontpanel ? HR_YELLOW : HR_CHARCOAL;
     effective_variant = device_depth < 49 ? VARIANT_TRAY : variant;
 
+    _split_view = split_frontpanel && split_export == 1 ? VIEW_PLATE_SPLIT_CENTER
+                : split_frontpanel && split_export == 2 ? VIEW_PLATE_SPLIT_LEFT
+                : split_frontpanel && split_export == 3 ? VIEW_PLATE_SPLIT_RIGHT
+                : VIEW_ASSEMBLY;
+
     frontpanel(effective_variant, standard, split_frontpanel,
       device_width, device_depth, device_height,
       flush_to_top, flush_to_bottom, bracket_strength_sides,
       flange_depth, lightweight_tray,
       chamfer_toggle=true, debug_colors=false,
-      VIEW_ASSEMBLY, anchor=FRONT+BOTTOM){
+      _split_view, anchor=_split_view == VIEW_ASSEMBLY ? FRONT+BOTTOM : CENTER){
       }
     if(effective_variant == VARIANT_BRACKET)
       color(bracket_color)

@@ -97,6 +97,31 @@
             "show_distance": "false",
             "strength": "3",
             "vesa_preset": "100"
+        },
+        "switch_vertical": {
+            "asymetry": "0",
+            "center_device_bore_alignment": "false",
+            "device_bore_columns": "2",
+            "device_bore_distance_bottom": "8",
+            "device_bore_distance_front": "12",
+            "device_bore_hole_diameter": "3.2999999999999998",
+            "device_bore_hole_head_diameter": "6",
+            "device_bore_hole_head_length": "1.2",
+            "device_bore_margin_horizontal": "30",
+            "device_bore_margin_vertical": "30",
+            "device_bore_rows": "2",
+            "device_depth": "0",
+            "device_height": "0",
+            "device_width": "240",
+            "flange_depth": "1",
+            "flange_direction": "outside",
+            "flange_style": "tab",
+            "part": "right",
+            "rack_size": "10",
+            "rack_width": "0",
+            "show_distance": "false",
+            "strength": "3",
+            "vesa_preset": "none"
         }
     }
 }
