@@ -93,7 +93,7 @@ module patch_panel() {
 
     // Corner notches for HomeRacker connectors
     if(connector_notch) {
-      _notch_size = [BASE_UNIT + 1, ear_strength + EPSILON*2, BASE_UNIT + 0.5];
+      _notch_size = [BASE_UNIT + 2, ear_strength + EPSILON*2, BASE_UNIT + 2];
       translate([frame_offset_x, 0, frame_offset_z]) {
         // Top-left
         translate([-total_width/2 + BASE_UNIT/2, 0, total_height/2 - BASE_UNIT/2])
