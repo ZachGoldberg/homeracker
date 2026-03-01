@@ -19,14 +19,14 @@ row_pitch = 30; // [20:0.5:45]
 panel_depth = 2; // [1:0.5:15]
 
 /* [Ears] */
-// HomeRacker squares on top edge
-ear_units_top = 1; // [0:10]
-// HomeRacker squares on bottom edge
-ear_units_bottom = 1; // [0:10]
-// HomeRacker squares on left edge
-ear_units_left = 1; // [0:10]
-// HomeRacker squares on right edge
-ear_units_right = 1; // [0:10]
+// Extra margin on left side in mm
+margin_left = 0; // [0:1:300]
+// Extra margin on right side in mm
+margin_right = 0; // [0:1:300]
+// Extra margin on top in mm
+margin_top = 0; // [0:1:300]
+// Extra margin on bottom in mm
+margin_bottom = 0; // [0:1:300]
 // Ear thickness (depth behind panel face)
 ear_strength = 2; // [1:0.5:15]
 
@@ -39,49 +39,64 @@ panel_width = ceil(columns * col_pitch / BASE_UNIT) * BASE_UNIT;
 panel_height = ceil(rows * row_pitch / BASE_UNIT) * BASE_UNIT;
 panel_thickness = panel_depth;
 
-// Ear dimensions
-ear_top_height = ear_units_top * BASE_UNIT;
-ear_bottom_height = ear_units_bottom * BASE_UNIT;
-ear_left_width = ear_units_left * BASE_UNIT;
-ear_right_width = ear_units_right * BASE_UNIT;
+// Ear strip width per side = 1 BASE_UNIT (lock pin row) + margin
+_ear_left = BASE_UNIT + margin_left;
+_ear_right = BASE_UNIT + margin_right;
+_ear_top = BASE_UNIT + margin_top;
+_ear_bottom = BASE_UNIT + margin_bottom;
 
-// Total outer dimensions including ears
-total_width = ear_left_width + panel_width + ear_right_width;
-total_height = ear_bottom_height + panel_height + ear_top_height;
+// Total outer dimensions
+total_width = _ear_left + panel_width + _ear_right;
+total_height = _ear_bottom + panel_height + _ear_top;
+
+// Offset of panel center relative to frame center
+frame_offset_x = (_ear_left - _ear_right) / 2;
+frame_offset_z = (_ear_bottom - _ear_top) / 2;
 
 module patch_panel() {
   ear_y_offset = (ear_strength - panel_thickness) / 2;
 
   difference() {
     union() {
-      // Main panel plate
+      // Main panel plate (keystone grid area only)
       color(HR_CHARCOAL)
       cuboid([panel_width, panel_thickness, panel_height]);
 
-      // Ear frame — single piece surrounding the panel
-      if(ear_units_top > 0 || ear_units_bottom > 0 || ear_units_left > 0 || ear_units_right > 0)
-        color(HR_YELLOW)
-        translate([(ear_left_width - ear_right_width) / 2, ear_y_offset, (ear_bottom_height - ear_top_height) / 2])
-        difference() {
-          cuboid([total_width, ear_strength, total_height], chamfer=BASE_CHAMFER);
-          cuboid([panel_width, ear_strength + EPSILON*2, panel_height]);
-        }
+      // Ear frame — outer ring including margins
+      color(HR_YELLOW)
+      translate([frame_offset_x, ear_y_offset, frame_offset_z])
+      difference() {
+        cuboid([total_width, ear_strength, total_height], chamfer=BASE_CHAMFER);
+        cuboid([panel_width, panel_thickness + EPSILON*2, panel_height]);
+      }
     }
 
-    // Keystone cutouts — xcopies for columns, zcopies for rows
+    // Keystone cutouts
     xcopies(spacing=col_pitch, n=columns)
       zcopies(spacing=row_pitch, n=rows)
         cuboid([keystone_width, panel_thickness + EPSILON*2, keystone_height]);
 
-    // Lock pin holes — full frame grid, holes in the center cutout area just cut air
-    if(ear_units_top > 0 || ear_units_bottom > 0 || ear_units_left > 0 || ear_units_right > 0) {
-      _w_units = floor(total_width / BASE_UNIT);
-      _h_units = floor(total_height / BASE_UNIT);
-      translate([(ear_left_width - ear_right_width) / 2, ear_y_offset, (ear_bottom_height - ear_top_height) / 2])
-        xcopies(spacing=BASE_UNIT, n=_w_units)
-          zcopies(spacing=BASE_UNIT, n=_h_units)
-            xrot(90) lock_pin_hole();
-    }
+    // Lock pin holes — one row on each outer edge
+    _pw = panel_width / 2;
+    _ph = panel_height / 2;
+    _n_top = floor(total_width / BASE_UNIT);
+    _n_side = floor(total_height / BASE_UNIT);
+    // Top row
+    translate([frame_offset_x, ear_y_offset, total_height / 2 - BASE_UNIT / 2])
+      xcopies(spacing=BASE_UNIT, n=_n_top)
+        xrot(90) lock_pin_hole();
+    // Bottom row
+    translate([frame_offset_x, ear_y_offset, -total_height / 2 + BASE_UNIT / 2])
+      xcopies(spacing=BASE_UNIT, n=_n_top)
+        xrot(90) lock_pin_hole();
+    // Left column
+    translate([-total_width / 2 + BASE_UNIT / 2 + frame_offset_x, ear_y_offset, frame_offset_z])
+      zcopies(spacing=BASE_UNIT, n=_n_side)
+        xrot(90) lock_pin_hole();
+    // Right column
+    translate([total_width / 2 - BASE_UNIT / 2 + frame_offset_x, ear_y_offset, frame_offset_z])
+      zcopies(spacing=BASE_UNIT, n=_n_side)
+        xrot(90) lock_pin_hole();
   }
 }
 

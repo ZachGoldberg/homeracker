@@ -5,12 +5,9 @@
             "col_pitch": "20",
             "columns": "4",
             "ear_strength": "3",
-            "ear_units_bottom": "1",
-            "ear_units_left": "1",
-            "ear_units_right": "1",
-            "ear_units_top": "1",
             "keystone_height": "16",
             "keystone_width": "14.5",
+            "margin_left": "30",
             "panel_depth": "10",
             "rows": "4"
         }
