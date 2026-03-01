@@ -2,13 +2,15 @@
     "fileFormatVersion": "1",
     "parameterSets": {
         "New set 1": {
+            "center_keystones": "true",
             "col_pitch": "20",
-            "columns": "4",
+            "columns": "5",
             "ear_strength": "3",
+            "keystone_depth": "15",
             "keystone_height": "16",
             "keystone_width": "14.5",
-            "margin_left": "30",
-            "panel_depth": "10",
+            "margin_left": "0",
+            "margin_top": "15",
             "rows": "4"
         }
     }
