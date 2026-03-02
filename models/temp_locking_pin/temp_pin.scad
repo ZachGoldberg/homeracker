@@ -1,42 +1,33 @@
-// Temp Pin - Temporary Lock Pin for HomeRacker
-//
-// A temporary, tool-free lock pin featuring:
-// - Large circular handle extending in the pin plane (easy to grab)
-// - Split prong snap-fit barbed end for medium strength hold
-// - Tapered prong tips for easy insertion
-//
-// Prints flat on the build plate with no supports needed.
-// Insert by pushing through a lockpin hole until barbs snap past.
-// Remove by squeezing prong tips together and pulling out.
-
 include <BOSL2/std.scad>
 include <models/core/lib/constants.scad>
 
+/* [Handle] */
+// Circular handle diameter in mm
+handle_diameter = 20; // [10:1:40]
+// Handle hole diameter in mm
+handle_hole_diameter = 12; // [4:1:30]
+
+/* [Shaft] */
+// Shaft length past the handle edge in mm
+shaft_length = 16; // [5:1:30]
+
+/* [Prongs] */
+// Total prong length in mm
+prong_length = 12; // [6:1:20]
+// Gap between prongs for flex in mm
+prong_gap = 1.4; // [0.5:0.1:3]
+// Outward barb extension per side in mm
+barb_overhang = 0.3; // [0.1:0.1:1.5]
+// Gradual insertion ramp length in mm
+barb_ramp_length = 3; // [1:0.5:8]
+// Lead-in taper at prong tips in mm
+taper_length = 1.8; // [0.5:0.1:4]
+
+/* [Hidden] */
 $fn = 64;
-
-// Shaft cross-section: fits through 4mm square lockpin hole
 pin_side = LOCKPIN_HOLE_SIDE_LENGTH - TOLERANCE;
-
-// Circular handle (flat disc in the same plane, same thickness as shaft)
-handle_diameter = 20;
-
-// Shaft length past the handle edge
-shaft_length = 12;
-
-// Split prong snap-fit end
-prong_length = 8;
-prong_gap = 1.4;           // gap between prongs for flex
-barb_overhang = 0.6;       // outward barb extension per side
-barb_ramp_length = 4;      // gradual insertion ramp
-taper_length = 1.5;        // lead-in taper at prong tips
-
 chamfer = PRINTING_LAYER_WIDTH;
-
-// Render
 temp_pin();
-
-// Handle hole diameter
-handle_hole_diameter = 8;
 
 module temp_pin() {
     shaft_end_x = shaft_length;

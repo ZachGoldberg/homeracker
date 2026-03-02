@@ -340,7 +340,9 @@ def export_for_makerworld(input_file: Path, output_file: Path):
     project_root = input_file.resolve()
     while project_root.parent != project_root and not (project_root / "models").exists():
         project_root = project_root.parent
-    search_paths = [project_root / "models"] if (project_root / "models").exists() else []
+    search_paths = [project_root]
+    if (project_root / "models").exists():
+        search_paths.append(project_root / "models")
 
     root_content = input_file.read_text(encoding="utf-8")
     params = extract_parameters(root_content)

@@ -60,7 +60,7 @@
         "miniswitch": {
             "bracket_strength_sides": "7.5",
             "bracket_strength_top": "7.5",
-            "connector_notch": "false",
+            "connector_notch": "true",
             "custom_panel_width": "285",
             "device_depth": "102",
             "device_height": "26",
