@@ -86,7 +86,7 @@
             "device_bore_margin_vertical": "25",
             "device_bore_rows": "2",
             "device_depth": "215",
-            "device_height": "180",
+            "device_height": "120",
             "device_width": "280",
             "flange_depth": "1",
             "flange_direction": "outside",
