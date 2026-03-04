@@ -71,7 +71,7 @@
             "force_single_mount_column": "false",
             "lightweight_tray": "false",
             "rack_mount_style": "homeracker",
-            "split_export": "0",
+            "split_export": "3",
             "split_frontpanel": "true",
             "standard": "3",
             "variant": "2"

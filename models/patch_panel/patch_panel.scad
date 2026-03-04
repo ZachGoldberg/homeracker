@@ -7,16 +7,28 @@ include <core/lib/support.scad>
 columns = 6; // [1:24]
 // Number of keystone rows
 rows = 2; // [1:12]
-// Keystone opening width in mm
-keystone_width = 14.5; // [13:0.1:16]
-// Keystone opening height in mm
-keystone_height = 16; // [14:0.1:20]
 // Horizontal spacing between keystones (center-to-center) in mm
 col_pitch = 15; // [15:0.5:30]
 // Vertical spacing between keystones (center-to-center) in mm
 row_pitch = 30; // [20:0.5:45]
-// Depth of keystone openings in mm
-keystone_depth = 5; // [1:0.5:15]
+
+/* [Keystone Mount] */
+// Faceplate opening width (X) in mm
+keystone_faceplate_width = 14.5; // [13:0.1:16]
+// Faceplate opening height (Z) in mm
+keystone_faceplate_height = 20; // [14:0.1:25]
+// Clip plate opening width (X) in mm
+keystone_clipplate_width = 14.5; // [13:0.1:16]
+// Clip plate opening height (Z) in mm — shorter than faceplate, ledge at top
+keystone_clipplate_height = 18.75; // [12:0.1:25]
+// Faceplate thickness in mm
+faceplate_thickness = 2; // [1:0.5:5]
+// Distance from back of faceplate to clip retention plate in mm
+clip_plate_offset = 7; // [4:0.5:12]
+// Thickness of clip retention plate in mm
+clip_plate_thickness = 1.5; // [1:0.5:3]
+// Wall thickness around keystone pocket in mm
+pocket_wall = 1.5; // [1:0.5:3]
 
 /* [Ears] */
 // Extra margin on left side in mm
@@ -27,8 +39,8 @@ margin_right = 0; // [0:1:300]
 margin_top = 0; // [0:1:300]
 // Extra margin on bottom in mm
 margin_bottom = 0; // [0:1:300]
-// Ear thickness (depth behind panel face)
-ear_strength = 2; // [1:0.5:15]
+// Ear thickness (depth behind panel face) — matches faceplate
+ear_strength = faceplate_thickness;
 // Notch corners to fit around HomeRacker connectors
 connector_notch = true;
 // Center keystone grid within the full panel (including margins)
@@ -63,33 +75,66 @@ total_height = _ear_bottom + panel_height + _ear_top;
 frame_offset_x = (_ear_left - _ear_right) / 2;
 frame_offset_z = (_ear_bottom - _ear_top) / 2;
 
+// Derived keystone pocket dimensions
+_pocket_depth = clip_plate_offset + clip_plate_thickness;
+_max_height = max(keystone_faceplate_height, keystone_clipplate_height);
+_pocket_outer_w = keystone_faceplate_width + 2 * pocket_wall;
+_pocket_outer_h = _max_height + 2 * pocket_wall;
+_clip_plate_y = -faceplate_thickness/2 - clip_plate_offset - clip_plate_thickness/2;
+// Bottom-alignment offsets: shift each opening down so bottom edges align
+_faceplate_z_offset = (keystone_faceplate_height - _max_height) / 2;  // negative when faceplate is shorter
+_clipplate_z_offset = (keystone_clipplate_height - _max_height) / 2;  // negative when clipplate is shorter
+// Clip bar: covers the gap between faceplate top and clipplate top
+_clip_bar_height = abs(keystone_faceplate_height - keystone_clipplate_height) + pocket_wall;
+
 module patch_panel() {
   _n_top = floor(total_width / BASE_UNIT);
   _n_side = floor(total_height / BASE_UNIT);
+  _kx = center_keystones ? frame_offset_x : 0;
+  _kz = center_keystones ? frame_offset_z : 0;
 
   difference() {
     union() {
-      // Main slab
+      // Front faceplate slab
       translate([frame_offset_x, 0, frame_offset_z])
-      cuboid([total_width, ear_strength, total_height], chamfer=BASE_CHAMFER);
+      cuboid([total_width, faceplate_thickness, total_height],
+             chamfer=min(BASE_CHAMFER, faceplate_thickness/2 - EPSILON));
 
-      // Keystone wells — protrude from back if deeper than slab
-      _kx = center_keystones ? frame_offset_x : 0;
-      _kz = center_keystones ? frame_offset_z : 0;
+      // Keystone pocket walls — open-backed channel extending behind faceplate
       color(HR_CHARCOAL)
-      translate([_kx, -ear_strength/2 + keystone_depth/2, _kz])
+      translate([_kx, -faceplate_thickness/2 - _pocket_depth/2, _kz])
       xcopies(spacing=col_pitch, n=columns)
         zcopies(spacing=row_pitch, n=rows)
-          cuboid([keystone_width + 2, keystone_depth, keystone_height + 2]);
+          cuboid([_pocket_outer_w, _pocket_depth, _pocket_outer_h]);
+
+      // Clip bar — ledge at top of each keystone on the rear of the pocket
+      color(HR_CHARCOAL)
+      translate([_kx, _clip_plate_y, _kz])
+      xcopies(spacing=col_pitch, n=columns)
+        zcopies(spacing=row_pitch, n=rows)
+          translate([0, 0, _max_height/2 - _clip_bar_height/2])
+            cuboid([_pocket_outer_w, clip_plate_thickness, _clip_bar_height]);
     }
 
-    // Keystone cutouts — punch through the wells
-    _kx = center_keystones ? frame_offset_x : 0;
-    _kz = center_keystones ? frame_offset_z : 0;
-    translate([_kx, -ear_strength/2 + keystone_depth/2, _kz])
+    // Faceplate opening, bottom-aligned
+    translate([_kx, 0, _kz])
     xcopies(spacing=col_pitch, n=columns)
       zcopies(spacing=row_pitch, n=rows)
-        cuboid([keystone_width, keystone_depth + EPSILON, keystone_height]);
+        translate([0, 0, _faceplate_z_offset])
+          cuboid([keystone_faceplate_width, faceplate_thickness + EPSILON, keystone_faceplate_height]);
+
+    // Interior channel: hollow out the pocket interior, leaving pocket_wall on top and bottom
+    translate([_kx, -faceplate_thickness/2 - clip_plate_offset/2, _kz])
+    xcopies(spacing=col_pitch, n=columns)
+      zcopies(spacing=row_pitch, n=rows)
+        cuboid([keystone_faceplate_width, clip_plate_offset + EPSILON, _max_height]);
+
+    // Rear opening: clipplate size, bottom-aligned
+    translate([_kx, _clip_plate_y, _kz])
+    xcopies(spacing=col_pitch, n=columns)
+      zcopies(spacing=row_pitch, n=rows)
+        translate([0, 0, _clipplate_z_offset])
+          cuboid([keystone_clipplate_width, clip_plate_thickness + EPSILON, keystone_clipplate_height]);
 
     // Corner notches for HomeRacker connectors
     if(connector_notch) {

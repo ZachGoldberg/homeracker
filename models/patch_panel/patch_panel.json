@@ -5,8 +5,6 @@
             "center_keystones": "true",
             "col_pitch": "20",
             "columns": "2",
-            "ear_strength": "3",
-            "keystone_depth": "15",
             "keystone_height": "16",
             "keystone_width": "14.5",
             "margin_bottom": "15",
@@ -23,8 +21,6 @@
             "col_pitch": "20",
             "columns": "3",
             "connector_notch": "true",
-            "ear_strength": "3",
-            "keystone_depth": "15",
             "keystone_height": "16",
             "keystone_width": "14.5",
             "margin_bottom": "15",
@@ -37,6 +33,24 @@
             "pins_top": "false",
             "row_pitch": "33",
             "rows": "4"
+        },
+        "New set 2": {
+            "center_keystones": "false",
+            "col_pitch": "15",
+            "columns": "1",
+            "connector_notch": "true",
+            "keystone_height": "19.800000000000001",
+            "keystone_width": "14.699999999999999",
+            "margin_bottom": "0",
+            "margin_left": "0",
+            "margin_right": "0",
+            "margin_top": "0",
+            "pins_bottom": "true",
+            "pins_left": "true",
+            "pins_right": "true",
+            "pins_top": "true",
+            "row_pitch": "30",
+            "rows": "1"
         }
     }
 }
