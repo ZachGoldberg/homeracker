@@ -8,7 +8,7 @@ columns = 6; // [1:24]
 // Number of keystone rows
 rows = 2; // [1:12]
 // Horizontal spacing between keystones (center-to-center) in mm
-col_pitch = 15; // [15:0.5:30]
+col_pitch = 25; // [15:0.5:30]
 // Vertical spacing between keystones (center-to-center) in mm
 row_pitch = 30; // [20:0.5:45]
 
@@ -19,7 +19,7 @@ keystone_faceplate_width = 14.5; // [13:0.1:16]
 keystone_faceplate_height = 20; // [14:0.1:25]
 // Clip plate opening width (X) in mm
 keystone_clipplate_width = 14.5; // [13:0.1:16]
-// Clip plate opening height (Z) in mm — shorter than faceplate, ledge at top
+// Clip plate opening height (Z) in mm
 keystone_clipplate_height = 18.75; // [12:0.1:25]
 // Faceplate thickness in mm
 faceplate_thickness = 2; // [1:0.5:5]
@@ -79,13 +79,13 @@ frame_offset_z = (_ear_bottom - _ear_top) / 2;
 _pocket_depth = clip_plate_offset + clip_plate_thickness;
 _max_height = max(keystone_faceplate_height, keystone_clipplate_height);
 _pocket_outer_w = keystone_faceplate_width + 2 * pocket_wall;
-_pocket_outer_h = _max_height + 2 * pocket_wall;
+_pocket_outer_h = _max_height + 3 * pocket_wall;
 _clip_plate_y = -faceplate_thickness/2 - clip_plate_offset - clip_plate_thickness/2;
 // Bottom-alignment offsets: shift each opening down so bottom edges align
 _faceplate_z_offset = (keystone_faceplate_height - _max_height) / 2;  // negative when faceplate is shorter
 _clipplate_z_offset = (keystone_clipplate_height - _max_height) / 2;  // negative when clipplate is shorter
-// Clip bar: covers the gap between faceplate top and clipplate top
-_clip_bar_height = abs(keystone_faceplate_height - keystone_clipplate_height) + pocket_wall;
+// Clip bar
+_clip_bar_height = 1.5;
 
 module patch_panel() {
   _n_top = floor(total_width / BASE_UNIT);
@@ -107,13 +107,6 @@ module patch_panel() {
         zcopies(spacing=row_pitch, n=rows)
           cuboid([_pocket_outer_w, _pocket_depth, _pocket_outer_h]);
 
-      // Clip bar — ledge at top of each keystone on the rear of the pocket
-      color(HR_CHARCOAL)
-      translate([_kx, _clip_plate_y, _kz])
-      xcopies(spacing=col_pitch, n=columns)
-        zcopies(spacing=row_pitch, n=rows)
-          translate([0, 0, _max_height/2 - _clip_bar_height/2])
-            cuboid([_pocket_outer_w, clip_plate_thickness, _clip_bar_height]);
     }
 
     // Faceplate opening, bottom-aligned
@@ -127,15 +120,21 @@ module patch_panel() {
     translate([_kx, -faceplate_thickness/2 - clip_plate_offset/2, _kz])
     xcopies(spacing=col_pitch, n=columns)
       zcopies(spacing=row_pitch, n=rows)
-        cuboid([keystone_faceplate_width, clip_plate_offset + EPSILON, _max_height]);
+        cuboid([keystone_faceplate_width, clip_plate_offset + EPSILON, _max_height + pocket_wall * 2]);
 
-    // Rear opening: clipplate size, bottom-aligned
+    // Rear opening: smaller of the two openings, bottom-aligned
+    // The bar covers the difference at the top
+    // Rear opening stops below the clip bar
+    _rear_height = _max_height;
+    _rear_z_offset = (_rear_height - _max_height) / 2;
     translate([_kx, _clip_plate_y, _kz])
     xcopies(spacing=col_pitch, n=columns)
       zcopies(spacing=row_pitch, n=rows)
-        translate([0, 0, _clipplate_z_offset])
-          cuboid([keystone_clipplate_width, clip_plate_thickness + EPSILON, keystone_clipplate_height]);
+        translate([0, 0, _rear_z_offset])
+          cuboid([keystone_clipplate_width, clip_plate_thickness + EPSILON, _rear_height]);
 
+  
+          
     // Corner notches for HomeRacker connectors
     if(connector_notch) {
       _notch_size = [BASE_UNIT + 2, ear_strength + EPSILON*2, BASE_UNIT + 2];
