@@ -58,14 +58,23 @@ pins_right = true;
 $fn = 100;
 EPSILON = 0.01;
 
+
+// Derived keystone pocket dimensions
+_pocket_depth = clip_plate_offset + clip_plate_thickness;
+_max_height = max(keystone_faceplate_height, keystone_clipplate_height);
+_pocket_outer_w = keystone_faceplate_width + 2 * pocket_wall;
+_pocket_outer_h = _max_height + 3 * pocket_wall;
+_clip_plate_y = -faceplate_thickness/2 - clip_plate_offset - clip_plate_thickness/2;
+
 // Panel dimensions — snap to BASE_UNIT grid for clean ear alignment
-panel_width = ceil(columns * col_pitch / BASE_UNIT) * BASE_UNIT;
-panel_height = ceil(rows * row_pitch / BASE_UNIT) * BASE_UNIT;
+panel_width = ceil(((columns - 1) * col_pitch + _pocket_outer_w + BASE_UNIT) / BASE_UNIT) * BASE_UNIT;
+panel_height = ceil(((rows - 1) * row_pitch + _pocket_outer_h + BASE_UNIT) / BASE_UNIT) * BASE_UNIT;
+
 // Ear strip width per side = 1 BASE_UNIT (lock pin row) + margin, or 0 if pins disabled
-_ear_left = pins_left ? BASE_UNIT + margin_left : 0;
-_ear_right = pins_right ? BASE_UNIT + margin_right : 0;
-_ear_top = pins_top ? BASE_UNIT + margin_top : 0;
-_ear_bottom = pins_bottom ? BASE_UNIT + margin_bottom : 0;
+_ear_left = (pins_left ? BASE_UNIT : 0) + margin_left;
+_ear_right = (pins_right ? BASE_UNIT : 0) + margin_right;
+_ear_top = (pins_top ? BASE_UNIT : 0) + margin_top;
+_ear_bottom = (pins_bottom ? BASE_UNIT : 0) + margin_bottom;
 
 // Total outer dimensions
 total_width = _ear_left + panel_width + _ear_right;
@@ -74,13 +83,6 @@ total_height = _ear_bottom + panel_height + _ear_top;
 // Offset of panel center relative to frame center
 frame_offset_x = (_ear_left - _ear_right) / 2;
 frame_offset_z = (_ear_bottom - _ear_top) / 2;
-
-// Derived keystone pocket dimensions
-_pocket_depth = clip_plate_offset + clip_plate_thickness;
-_max_height = max(keystone_faceplate_height, keystone_clipplate_height);
-_pocket_outer_w = keystone_faceplate_width + 2 * pocket_wall;
-_pocket_outer_h = _max_height + 3 * pocket_wall;
-_clip_plate_y = -faceplate_thickness/2 - clip_plate_offset - clip_plate_thickness/2;
 // Bottom-alignment offsets: shift each opening down so bottom edges align
 _faceplate_z_offset = (keystone_faceplate_height - _max_height) / 2;  // negative when faceplate is shorter
 _clipplate_z_offset = (keystone_clipplate_height - _max_height) / 2;  // negative when clipplate is shorter
@@ -95,7 +97,8 @@ module patch_panel() {
 
   difference() {
     union() {
-      // Front faceplate slab
+      // Front faceplate slab 
+      color(HR_RED)
       translate([frame_offset_x, 0, frame_offset_z])
       cuboid([total_width, faceplate_thickness, total_height],
              chamfer=min(BASE_CHAMFER, faceplate_thickness/2 - EPSILON));
