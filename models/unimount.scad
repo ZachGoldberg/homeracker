@@ -407,6 +407,7 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
       if (corner_clearance > 0 && rack_mount_style == "homeracker" && rackmount_type != RACKMOUNT_CENTER) {
         _corner_cut_depth = 100;
         _corner_cut_height = BASE_UNIT + 0.5;
+        _corner_cut_width = BASE_UNIT + 0.5;
         _connector_notch_width = BASE_UNIT + 1;
         _flange_center_y = BASE_STRENGTH/2;
         _center_shift = (panel_extension_height_bottom - panel_extension_height_top)/2;
@@ -423,6 +424,21 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
           for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
             translate([(panel_width - BASE_UNIT)/2 - _connector_notch_width/2 - corner_clearance/2, _flange_center_y, _z])
               cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
+
+        // Bottom/top corner clearance notches
+        _bottom_notch_z = -total_height/2 + corner_clearance/2;
+        _top_notch_z = total_height/2;
+
+        // Left ear bottom and top
+        for(_z = [_bottom_notch_z, _top_notch_z])
+          translate([(-panel_width + BASE_UNIT)/2 + _connector_notch_width + corner_clearance - 0.3, _flange_center_y, _z])
+            cube([_corner_cut_width, _corner_cut_depth, corner_clearance], center=true);
+
+        // Right ear bottom and top (only for full-width panels)
+        if(rackmount_type == RACKMOUNT_FULL)
+          for(_z = [_bottom_notch_z, _top_notch_z])
+            translate([(panel_width - BASE_UNIT)/2 - _connector_notch_width/2 - corner_clearance/2, _flange_center_y, _z])
+              cube([_corner_cut_width, _corner_cut_depth, corner_clearance], center=true);
       }
     }
     children();
