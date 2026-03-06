@@ -36,6 +36,8 @@ force_single_mount_column = false; // [false,true]
 rack_mount_style = "standard"; // [standard:Standard cage bolts,homeracker:HomeRacker lock pins]
 // Notch the top and bottom lock pin holes open to allow connector pass-through (homeracker only)
 connector_notch = false; // [false,true]
+// Extra clearance (mm) to subtract from each of the four corners for HomeRacker corner mount clearance
+corner_clearance = 0; // [0:0.1:10]
 
 
 /* [Advanced Parameters] */
@@ -223,7 +225,8 @@ module stiffener_frontpanel(stiffener_width=BASE_UNIT, orient=UP) {
   stiffener_side_length = BASE_UNIT - BASE_STRENGTH;
   stopper_wedge = [stiffener_width, stiffener_side_length, stiffener_side_length];
   wedge_chamfer = BASE_CHAMFER;
-
+     
+          
   tag_scope("stiffener") diff() wedge(stopper_wedge, orient=orient) {
       tag("remove") attach("bot_edge", LEFT+FWD, overlap=BASE_STRENGTH*sqrt(2))
       chamfer_edge_mask(l=stiffener_width, chamfer=BASE_STRENGTH);
@@ -398,6 +401,28 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
           for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
             translate([(panel_width - BASE_UNIT)/2, _flange_center_y, _z])
               cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
+      }
+
+      // Corner mount clearance notches adjacent to connector notch areas
+      if (corner_clearance > 0 && rack_mount_style == "homeracker" && rackmount_type != RACKMOUNT_CENTER) {
+        _corner_cut_depth = 100;
+        _corner_cut_height = BASE_UNIT + 0.5;
+        _connector_notch_width = BASE_UNIT + 1;
+        _flange_center_y = BASE_STRENGTH/2;
+        _center_shift = (panel_extension_height_bottom - panel_extension_height_top)/2;
+        _stack_top = _center_shift + rackmount_stack_height/2;
+        _stack_bottom = _center_shift - rackmount_stack_height/2;
+
+        // Left flange - extend toward center
+        for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+          translate([(-panel_width + BASE_UNIT)/2 + _connector_notch_width/2 + corner_clearance/2, _flange_center_y, _z])
+            cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
+
+        // Right flange (only for full-width panels)
+        if(rackmount_type == RACKMOUNT_FULL)
+          for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+            translate([(panel_width - BASE_UNIT)/2 - _connector_notch_width/2 - corner_clearance/2, _flange_center_y, _z])
+              cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
       }
     }
     children();
