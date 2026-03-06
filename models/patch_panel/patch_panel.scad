@@ -140,7 +140,7 @@ module patch_panel() {
           
     // Corner notches for HomeRacker connectors
     if(connector_notch) {
-      _notch_size = [BASE_UNIT + 2, ear_strength + EPSILON*2, BASE_UNIT + 2];
+      _notch_size = [BASE_UNIT + 5, ear_strength + EPSILON*2, BASE_UNIT + 1];
       translate([frame_offset_x, 0, frame_offset_z]) {
         // Top-left
         translate([-total_width/2 + BASE_UNIT/2, 0, total_height/2 - BASE_UNIT/2])
@@ -154,7 +154,15 @@ module patch_panel() {
         // Bottom-right
         translate([total_width/2 - BASE_UNIT/2, 0, -total_height/2 + BASE_UNIT/2])
           cuboid(_notch_size);
+       // Notch the top bar
+       translate([2, 0, total_height/2 - 1])
+          cuboid([total_width, 3, 3]);
+      // Notch the top bar
+       translate([2, 0, -total_height/2 + 1])
+          cuboid([total_width, 3, 3]);
+   
       }
+        
     }
 
     // Lock pin holes — one row on each outer edge
