@@ -12,23 +12,9 @@ col_pitch = 25; // [15:0.5:30]
 // Vertical spacing between keystones (center-to-center) in mm
 row_pitch = 30; // [20:0.5:45]
 
-/* [Keystone Mount] */
-// Faceplate opening width (X) in mm
-keystone_faceplate_width = 14.7; // [13:0.1:16]
-// Faceplate opening height (Z) in mm
-keystone_faceplate_height = 16; // [14:0.1:25]
-// Clip plate opening width (X) in mm
-keystone_clipplate_width = 14.7; // [13:0.1:16]
-// Clip plate opening height (Z) in mm
-keystone_clipplate_height = 20.1; // [12:0.1:25]
+
 // Faceplate thickness in mm
 faceplate_thickness = 2; // [1:0.5:5]
-// Distance from back of faceplate to clip retention plate in mm
-clip_plate_offset = 8; // [4:0.5:12]
-// Thickness of clip retention plate in mm
-clip_plate_thickness = 1; // [1:0.5:3]
-// Wall thickness around keystone pocket in mm
-pocket_wall = 1.5; // [1:0.5:3]
 
 /* [Ears] */
 // Extra margin on left side in mm
@@ -57,6 +43,22 @@ pins_right = true;
 /* [Hidden] */
 $fn = 100;
 EPSILON = 0.01;
+
+// Faceplate opening width (X) in mm
+keystone_faceplate_width = 14.7; // [13:0.1:16]
+// Faceplate opening height (Z) in mm
+keystone_faceplate_height = 16; // [14:0.1:25]
+// Clip plate opening width (X) in mm
+keystone_clipplate_width = 14.7; // [13:0.1:16]
+// Clip plate opening height (Z) in mm
+keystone_clipplate_height = 20.1; // [12:0.1:25]
+
+// Distance from back of faceplate to clip retention plate in mm
+clip_plate_offset = 8; // [4:0.5:12]
+// Thickness of clip retention plate in mm
+clip_plate_thickness = 1; // [1:0.5:3]
+// Wall thickness around keystone pocket in mm
+pocket_wall = 1.5; // [1:0.5:3]
 
 
 // Derived keystone pocket dimensions
