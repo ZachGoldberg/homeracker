@@ -19,6 +19,8 @@
             "col_pitch": "20",
             "columns": "3",
             "connector_notch": "true",
+            "keystone_clipplate_height": "20.100000000000001",
+            "keystone_faceplate_height": "16",
             "margin_bottom": "0",
             "margin_left": "15",
             "margin_right": "15",
@@ -68,13 +70,13 @@
             "margin_bottom": "0",
             "margin_left": "15",
             "margin_right": "15",
-            "margin_top": "0",
+            "margin_top": "15",
             "pins_bottom": "false",
             "pins_left": "true",
             "pins_right": "true",
             "pins_top": "false",
             "pocket_wall": "1.5",
-            "row_pitch": "25",
+            "row_pitch": "30",
             "rows": "4"
         },
         "switch5": {
@@ -100,6 +102,30 @@
             "pocket_wall": "1.5",
             "row_pitch": "30",
             "rows": "1"
+        },
+        "New set 3": {
+            "center_keystones": "true",
+            "clip_plate_offset": "7",
+            "clip_plate_thickness": "1.5",
+            "col_pitch": "25",
+            "columns": "3",
+            "connector_notch": "true",
+            "faceplate_thickness": "2",
+            "keystone_clipplate_height": "18.75",
+            "keystone_clipplate_width": "14.5",
+            "keystone_faceplate_height": "20",
+            "keystone_faceplate_width": "14.5",
+            "margin_bottom": "0",
+            "margin_left": "0",
+            "margin_right": "0",
+            "margin_top": "0",
+            "pins_bottom": "true",
+            "pins_left": "true",
+            "pins_right": "false",
+            "pins_top": "false",
+            "pocket_wall": "1.5",
+            "row_pitch": "30",
+            "rows": "4"
         }
     }
 }
