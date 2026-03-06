@@ -23,7 +23,7 @@
             "bracket_strength_sides": "25",
             "bracket_strength_top": "7.5",
             "connector_notch": "true",
-            "corner_clearance": "7",
+            "corner_clearance": "1.5",
             "custom_panel_width": "285",
             "device_depth": "260",
             "device_height": "140.5",

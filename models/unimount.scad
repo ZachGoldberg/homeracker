@@ -415,7 +415,7 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
 
         // Left flange - extend toward center
         for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
-          translate([(-panel_width + BASE_UNIT)/2 + _connector_notch_width/2 + corner_clearance/2, _flange_center_y, _z])
+          translate([(-panel_width + BASE_UNIT)/2 + _connector_notch_width/2 + corner_clearance/2 - EPSILON, _flange_center_y, _z])
             cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
 
         // Right flange (only for full-width panels)
