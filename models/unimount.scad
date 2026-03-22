@@ -38,6 +38,8 @@ rack_mount_style = "standard"; // [standard:Standard cage bolts,homeracker:HomeR
 connector_notch = false; // [false,true]
 // Extra clearance (mm) to subtract from each of the four corners for HomeRacker corner mount clearance
 corner_clearance = 0; // [0:0.1:10]
+// Vertical offset (mm) for HomeRacker lock pin holes (positive = up)
+lockpin_z_offset = -2; // [-5:0.1:5]
 
 
 /* [Advanced Parameters] */
@@ -55,7 +57,7 @@ BASE_UNIT = 15;
 BASE_STRENGTH = 2;
 BASE_CHAMFER = 1;
 LOCKPIN_HOLE_CHAMFER = 0.8;
-LOCKPIN_HOLE_SIDE_LENGTH = 4;
+LOCKPIN_HOLE_SIDE_LENGTH = 5;
 LOCKPIN_HOLE_SIDE_LENGTH_DIMENSION = [LOCKPIN_HOLE_SIDE_LENGTH, LOCKPIN_HOLE_SIDE_LENGTH];
 HR_YELLOW = "#f7b600";
 HR_BLUE = "#0056b3";
@@ -202,7 +204,6 @@ module lockpin_holes_inner() {
 module lockpin_holes_fwd() {
   _ext = BASE_STRENGTH + 0.5;
   _outer = LOCKPIN_HOLE_SIDE_LENGTH + LOCKPIN_HOLE_CHAMFER*2;
-
   zcopies(spacing = BASE_UNIT, n = 3)
   xrot(-90) {
     lock_pin_hole();
@@ -225,8 +226,8 @@ module stiffener_frontpanel(stiffener_width=BASE_UNIT, orient=UP) {
   stiffener_side_length = BASE_UNIT - BASE_STRENGTH;
   stopper_wedge = [stiffener_width, stiffener_side_length, stiffener_side_length];
   wedge_chamfer = BASE_CHAMFER;
-     
-          
+
+
   tag_scope("stiffener") diff() wedge(stopper_wedge, orient=orient) {
       tag("remove") attach("bot_edge", LEFT+FWD, overlap=BASE_STRENGTH*sqrt(2))
       chamfer_edge_mask(l=stiffener_width, chamfer=BASE_STRENGTH);
@@ -250,8 +251,11 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, anc
     if(panel_type == RACKMOUNT_FULL) {
       if(rack_mount_style == "homeracker") {
         flange_dims = [BASE_UNIT, BASE_STRENGTH, panel_height];
+         // Lock pin holes cut front-to-back through panel + flange
+
+
         difference() {
-          color(HR_YELLOW)
+          color(HR_BLUE)
           cuboid(panel_dimensions){
             align(BACK,[LEFT,RIGHT])
               cuboid(flange_dims, chamfer=BASE_CHAMFER, edges=[BACK+LEFT,BACK+RIGHT]);
@@ -263,9 +267,9 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, anc
               stiffener_frontpanel(panel_width-(STD_MOUNT_SURFACE_WIDTH+TOLERANCE)*2, orient=DOWN);
           }
           // Lock pin holes cut front-to-back through panel + flange
-          translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, 0])
+          translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, lockpin_z_offset])
             lockpin_holes_fwd();
-          translate([(panel_width - BASE_UNIT)/2, BASE_STRENGTH/2, 0])
+          translate([(panel_width - BASE_UNIT)/2, BASE_STRENGTH/2, lockpin_z_offset])
             lockpin_holes_fwd();
         }
       } else {
@@ -310,13 +314,13 @@ module rackmount_1u(panel_width=STD_WIDTH_10INCH, panel_type=RACKMOUNT_FULL, anc
           }
           if(rack_mount_style == "homeracker") {
             // Lock pin holes cut front-to-back through panel + left flange
-            translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, 0])
+            translate([(-panel_width + BASE_UNIT)/2, BASE_STRENGTH/2, lockpin_z_offset])
               lockpin_holes_fwd();
           } else {
             translate([(-panel_width+STD_MOUNT_SURFACE_WIDTH)/2,0,0])
             bores_1_hu();
           }
-          translate([(panel_width+LOCKPIN_WIDTH_OUTER-BASE_STRENGTH*2-TOLERANCE)/2,(BASE_UNIT-BASE_STRENGTH+LOCKPIN_HOLE_SIDE_LENGTH)/2,0])
+          translate([(panel_width+LOCKPIN_WIDTH_OUTER-BASE_STRENGTH*2-TOLERANCE)/2,(BASE_UNIT-BASE_STRENGTH+LOCKPIN_HOLE_SIDE_LENGTH)/2,lockpin_z_offset])
           lockpin_holes_outer();
         }
 
@@ -335,14 +339,14 @@ module mountbar(bar_dimensions, anchor=CENTER, spin=0, orient=UP) {
   attachable(anchor, spin, orient, size=bar_dimensions) {
     tag_scope("mountbar") diff()
     cuboid(bar_dimensions, chamfer=BASE_CHAMFER, edges=[BACK+LEFT,BACK+RIGHT]){
-      tag("remove") attach(CENTER) lockpin_holes_inner();
+      tag("remove") attach(CENTER) up(lockpin_z_offset) lockpin_holes_inner();
     }
     children();
   }
 }
 
 module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_height_top=0, height_units, rackmount_type,
-  anchor=CENTER, spin=0, orient=UP, color=HR_YELLOW, debug_colors=false) {
+  anchor=CENTER, spin=0, orient=UP, color=HR_YELLOW, debug_colors=true) {
 
   rackmount_stack_height = height_units*STD_UNIT_HEIGHT;
   total_height = rackmount_stack_height + panel_extension_height_bottom + panel_extension_height_top;
@@ -392,13 +396,13 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
         _stack_bottom = _shift - rackmount_stack_height/2;
 
         // Left flange notches
-        for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+        for(_z = [_stack_top - BASE_UNIT/2 + lockpin_z_offset, _stack_bottom + BASE_UNIT/2 + lockpin_z_offset])
           translate([(-panel_width + BASE_UNIT)/2, _flange_center_y, _z])
             cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
 
         // Right flange notches (only for full-width panels)
         if(rackmount_type == RACKMOUNT_FULL)
-          for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+          for(_z = [_stack_top - BASE_UNIT/2 + lockpin_z_offset, _stack_bottom + BASE_UNIT/2 + lockpin_z_offset])
             translate([(panel_width - BASE_UNIT)/2, _flange_center_y, _z])
               cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
       }
@@ -415,13 +419,13 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
         _stack_bottom = _center_shift - rackmount_stack_height/2;
 
         // Left flange - extend toward center
-        for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+        for(_z = [_stack_top - BASE_UNIT/2 + lockpin_z_offset, _stack_bottom + BASE_UNIT/2 + lockpin_z_offset])
           translate([(-panel_width + BASE_UNIT)/2 + _connector_notch_width/2 + corner_clearance/2 - EPSILON, _flange_center_y, _z])
             cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
 
         // Right flange (only for full-width panels)
         if(rackmount_type == RACKMOUNT_FULL)
-          for(_z = [_stack_top - BASE_UNIT/2, _stack_bottom + BASE_UNIT/2])
+          for(_z = [_stack_top - BASE_UNIT/2 + lockpin_z_offset, _stack_bottom + BASE_UNIT/2 + lockpin_z_offset])
             translate([(panel_width - BASE_UNIT)/2 - _connector_notch_width/2 - corner_clearance/2, _flange_center_y, _z])
               cube([corner_clearance, _corner_cut_depth, _corner_cut_height], center=true);
 
@@ -520,7 +524,7 @@ module frontpanel(variant, standard, split_frontpanel=false,
   device_width, device_depth, device_height,
   flush_to_top=false, flush_to_bottom=false, bracket_strength_sides=0,
   flange_depth=BASE_STRENGTH, lightweight_tray=false,
-  chamfer_toggle=true, debug_colors=false,
+  chamfer_toggle=true, debug_colors=true,
   view_mode=VIEW_ASSEMBLY,
   anchor=CENTER) {
 
@@ -833,7 +837,7 @@ module mw_assembly_view() {
       device_width, device_depth, device_height,
       flush_to_top, flush_to_bottom, bracket_strength_sides,
       flange_depth, lightweight_tray,
-      chamfer_toggle=true, debug_colors=false,
+      chamfer_toggle=true, debug_colors=true,
       _split_view, anchor=_split_view == VIEW_ASSEMBLY ? FRONT+BOTTOM : CENTER){
       }
     if(effective_variant == VARIANT_BRACKET)
@@ -865,7 +869,7 @@ module mw_plate_1() {
       frontpanel(variant, standard, split_frontpanel,
       device_width, device_depth, device_height,
       flush_to_top, flush_to_bottom, bracket_strength_sides,
-      flange_depth, lightweight_tray, chamfer_toggle=true, debug_colors=false, VIEW_PLATE_SINGLE);
+      flange_depth, lightweight_tray, chamfer_toggle=true, debug_colors=true, VIEW_PLATE_SINGLE);
   }
 }
 
@@ -875,13 +879,13 @@ module mw_plate_2() {
     frontpanel(variant, standard, split_frontpanel,
     device_width, device_depth, device_height,
     flush_to_top, flush_to_bottom, bracket_strength_sides,
-    flange_depth, lightweight_tray, chamfer_toggle=true, debug_colors=false, VIEW_PLATE_SPLIT_SIDES);
+    flange_depth, lightweight_tray, chamfer_toggle=true, debug_colors=true, VIEW_PLATE_SPLIT_SIDES);
 }
 
 
 module mw_plate_3() {
   if(variant == VARIANT_BRACKET || variant == VARIANT_BRACKET_ONLY) {
-    color(HR_YELLOW)
+    color(HR_BLUE)
     bracket_assembly(device_width, device_depth, device_height,
     bracket_strength_top, bracket_strength_sides,
     variant == VARIANT_BRACKET_ONLY ? MOUNT_VAR_REGULAR : MOUNT_VAR_RACKMOUNT,
