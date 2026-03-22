@@ -405,6 +405,36 @@ module rackmount(panel_width, panel_extension_height_bottom=0, panel_extension_h
           for(_z = [_stack_top - BASE_UNIT/2 + lockpin_z_offset, _stack_bottom + BASE_UNIT/2 + lockpin_z_offset])
             translate([(panel_width - BASE_UNIT)/2, _flange_center_y, _z])
               cube([BASE_UNIT + 1, _notch_depth, BASE_UNIT + 0.5], center=true);
+
+        // Edge cleanup: when offset shifts notches away from panel edges,
+        // cut the gap between the offset notch and panel edge to remove
+        // exposed flange and stiffener material.
+        // Negative offset moves notches down → gap at top edges
+        // Positive offset moves notches up → gap at bottom edges
+        if(lockpin_z_offset != 0) {
+          _gap = abs(lockpin_z_offset);
+          _cleanup_w = BASE_UNIT + STD_MOUNT_SURFACE_WIDTH;
+          _cleanup_d = 100;
+          _cleanup_h = _gap + 0.5;
+
+          // Left flange
+          if(lockpin_z_offset < 0)
+            translate([(-panel_width + BASE_UNIT)/2, 0, _stack_top - _gap/2 + 0.25])
+              cube([_cleanup_w, _cleanup_d, _cleanup_h], center=true);
+          else
+            translate([(-panel_width + BASE_UNIT)/2, 0, _stack_bottom + _gap/2 - 0.25])
+              cube([_cleanup_w, _cleanup_d, _cleanup_h], center=true);
+
+          // Right flange (only for full-width panels)
+          if(rackmount_type == RACKMOUNT_FULL) {
+            if(lockpin_z_offset < 0)
+              translate([(panel_width - BASE_UNIT)/2, 0, _stack_top - _gap/2 + 0.25])
+                cube([_cleanup_w, _cleanup_d, _cleanup_h], center=true);
+            else
+              translate([(panel_width - BASE_UNIT)/2, 0, _stack_bottom + _gap/2 - 0.25])
+                cube([_cleanup_w, _cleanup_d, _cleanup_h], center=true);
+          }
+        }
       }
 
       // Corner mount clearance notches adjacent to connector notch areas
